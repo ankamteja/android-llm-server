@@ -73,18 +73,25 @@ over Wi-Fi otherwise.
 
 ## Measured performance
 
-On the Galaxy S25 (Snapdragon 8 Elite, 6 of 8 cores, Qwen3-4B-Instruct Q4_K_M):
+On the Galaxy S25 (Snapdragon 8 Elite, Qwen3-4B-Instruct Q4_K_M). Prompt
+processing runs on the Adreno GPU, generation on six pinned CPU cores:
 
 | Metric | Value |
 |---|---|
-| Generation | ~15 tokens/sec (flash-attn, 8 threads) |
-| Prompt processing | ~33 tokens/sec |
+| Prompt processing | 70 tokens/sec (Adreno 830, Vulkan) |
+| Generation | 12 tokens/sec (6 pinned CPU cores) |
 | Model load time | ~2.6 s |
 | Idle RAM headroom | ~4 GB free with model resident |
 | Context window | 8192 tokens (q8_0 KV cache) |
-| First-token latency | sub-second over USB |
 
-Fast enough to read along with. Not instant, but usable for real work.
+Prompt processing is what you wait on before an answer starts, so it is the
+number that matters: a 605-token retrieval prompt begins answering after 8.9
+seconds rather than 36. Using the GPU is worth 4x there, and it is *slower* at
+generating tokens, which is why the two halves run on different hardware.
+
+[bench/RESULTS.md](bench/RESULTS.md) has the full matrix, the core-pinning
+measurements, and the OpenCL dead end. `bench/probe.py` reproduces the headline
+numbers against a running server.
 
 ## Endpoint authentication
 

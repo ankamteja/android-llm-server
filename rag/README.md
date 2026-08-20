@@ -43,9 +43,11 @@ advantage of RAG over fine-tuning for a knowledge base that keeps growing.
 
 | Path | Runs on | Purpose |
 |---|---|---|
+| `bin/ragcore.py` | phone | Chunking, scoring, prompt assembly — shared by the three below |
 | `bin/rag-embed-server.sh` | phone | Serves nomic-embed on :8082 (embedding mode) |
 | `bin/rag-index.py` | phone | Chunks `corpus/`, embeds each chunk → `index.jsonl` |
 | `bin/rag-ask.py` | phone | Embeds a query, cosine top-k, prompts the chat model |
+| `bin/rag-web.py` | phone | Browser page + OpenAI-compatible endpoint on :8083 |
 
 ## Usage (on the phone)
 
@@ -56,8 +58,57 @@ python3 ~/rag/bin/rag-index.py           # build ~/rag/index.jsonl
 python3 ~/rag/bin/rag-ask.py "how do I crack an NTLMv2 hash with hashcat?"
 ```
 
-From the laptop, run the same `rag-ask.py` over SSH, or call the chat server directly
-with your own retrieval client.
+## In a browser
+
+`rag-web.py` serves a chat page on :8083 and keeps the index in memory, so it does
+not re-read it per question. From the laptop:
+
+```sh
+adb forward tcp:8083 tcp:8083
+xdg-open http://localhost:8083
+```
+
+It binds `127.0.0.1` on the phone, so it is reachable only through that forward and
+never sits on the campus network. If you do bind it to a routable address
+(`--host 0.0.0.0`), it requires the same bearer token as :8081.
+
+## Which port applies retrieval
+
+This is the distinction that matters, and it is easy to get wrong:
+
+| Port | Retrieval | What it answers from |
+|---|---|---|
+| `:8081` | **no** | the model's weights alone |
+| `:8083` | **yes** | your notes, retrieved and pasted into the prompt |
+
+`llama-server` on :8081 knows nothing about `corpus/`. Anything pointed straight at
+it — curl, a browser, any OpenAI client — gets an answer that never saw your notes.
+Point clients at :8083 instead; it speaks the same `/v1/chat/completions` shape and
+adds a `sources` field to the response.
+
+```sh
+curl http://localhost:8083/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"how do I enumerate SMB shares?"}]}'
+```
+
+## Speed
+
+Retrieval is not the slow part: embedding the question, scoring all 1560 chunks in
+pure Python and taking the top 5 costs **161 ms**. The wait is prompt processing on
+the chat model, which is why the retrieved context is capped by a character budget
+(`RAG_CONTEXT_CHARS`, default 2000) rather than a fixed chunk count — prompt length
+is the wait. See [../bench/RESULTS.md](../bench/RESULTS.md).
+
+## Tests
+
+`tests/` covers chunking, scoring, retrieval ranking, prompt assembly and the whole
+HTTP surface against stand-in model servers, so it runs on a laptop and in CI with
+no phone and no model weights:
+
+```sh
+python3 -m pytest tests/ -q
+```
 
 ## Chunking
 
