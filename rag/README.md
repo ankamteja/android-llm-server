@@ -6,7 +6,7 @@ paths cited — no hallucinated commands, no internet.
 
 Built for **HTB CPTS** prep. The corpus here is a private tree of HTB Academy / CPTS
 module notes (information gathering, exploitation, password attacks, privilege
-escalation, post-exploitation). Heavy CTF work is intended to move to a laptop RTX 4060
+escalation, post-exploitation). Heavy CTF work is intended to move to my RTX 4060
 later; this runs the always-on study assistant.
 
 ## How it works
