@@ -16,7 +16,6 @@ OpenAI-compatible chat API over the LAN. No root, no custom ROM, no cloud.
         └──── USB (adb forward) ── or ── Wi-Fi ────────┘
 ```
 
-> **New here? Read [GUIDE.md](GUIDE.md) first — plain English, no jargon.**
 
 ## Why this is interesting
 
@@ -69,7 +68,6 @@ adb forward tcp:8083 tcp:8083 && xdg-open http://localhost:8083
 
 ## Documentation
 
-- **[GUIDE.md](GUIDE.md)** — start here. Plain-English: what it is, how to use it, how to fix it.
 - **[rag/](rag/README.md)** — the CPTS study assistant (RAG over your own notes), and
   the browser UI.
 
