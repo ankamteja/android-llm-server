@@ -82,7 +82,7 @@ background:var(--bg);color:var(--fg);font:inherit;font-family:ui-monospace,monos
 #ks{color:var(--mut);white-space:nowrap}
 </style></head><body>
 <header><h1>CPTS notes assistant</h1>
-<p>Answers from <span id="n">your</span> note chunks — retrieval first,
+<p>Answers from <span id="n">your</span> note chunks. Retrieval first,
 then the local model.</p></header>
 <main>
 <div id="log"></div>
@@ -110,6 +110,13 @@ fetch('health').then(r=>r.json()).then(d=>{
   document.getElementById('n').textContent=d.chunks;
   if(d.auth_required){kb.hidden=false; if(!apiKey) ki.focus();}
 });
+// Sticky autoscroll: follow the stream only while the reader is at the bottom.
+// If they scroll up to re-read, stop yanking them back down — that fight is the
+// jank. One listener for the whole page, not one per question.
+let sticky=true;
+const atBottom=()=>window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-60;
+const stick=()=>{if(sticky) window.scrollTo(0,document.documentElement.scrollHeight)};
+addEventListener('scroll',()=>{sticky=atBottom()},{passive:true});
 function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function render(s){return esc(s)
   .replace(/```([\\s\\S]*?)```/g,(m,c)=>'<pre><code>'+c.replace(/^\\w*\\n/,'')+'</code></pre>')
@@ -121,7 +128,8 @@ f.onsubmit=async e=>{
   const qd=document.createElement('div'); qd.className='msg q'; qd.textContent=question;
   const ad=document.createElement('div'); ad.className='msg';
   const body=document.createElement('div'); body.className='a'; ad.appendChild(body);
-  log.append(qd,ad); ad.scrollIntoView({block:'end'});
+  log.append(qd,ad);
+  sticky=true; stick();   // a fresh question always jumps to the newest message
   let text='', t0=Date.now();
   try{
     const res=await fetch('ask',{method:'POST',
@@ -139,9 +147,8 @@ f.onsubmit=async e=>{
         const line=p.split('\\n').find(l=>l.startsWith('data:')); if(!line) continue;
         const data=line.slice(5).trim(); if(!data||data==='[DONE]') continue;
         const ev=JSON.parse(data);
-        if(ev.token){text+=ev.token; body.innerHTML=render(text);
-          ad.scrollIntoView({block:'end'})}
-        if(ev.error){body.innerHTML+='<div class="err">'+esc(ev.error)+'</div>'}
+        if(ev.token){text+=ev.token; body.innerHTML=render(text); stick()}
+        if(ev.error){body.innerHTML+='<div class="err">'+esc(ev.error)+'</div>'; stick()}
         if(ev.sources){
           const s=document.createElement('div'); s.className='src';
           s.innerHTML='<b>sources</b>'+ev.sources.map(x=>'<div>'+esc(x)+'</div>').join('');
@@ -150,7 +157,7 @@ f.onsubmit=async e=>{
           m.textContent=`${ev.chunks} chunks searched · retrieval ${ev.retrieve_ms}ms `
             +`· first token ${(ev.ttft_ms/1000).toFixed(1)}s · ${ev.tok_per_s} tok/s `
             +`· ${ev.prompt_chars} prompt chars · total ${((Date.now()-t0)/1000).toFixed(1)}s`;
-          ad.appendChild(m);
+          ad.appendChild(m); stick();
         }
       }
     }
