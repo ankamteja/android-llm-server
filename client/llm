@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Laptop-side client for the phone-hosted LLM.
+# Usage:
+#   llm "your prompt"          one-shot completion
+#   llm --models               list loaded models
+#   llm --health               is the server up?
+#
+# Transport is picked automatically:
+#   1. USB   — sets up `adb forward` and talks to localhost (immune to IP changes)
+#   2. Wi-Fi — falls back to LLM_HOST if no device is on USB
+set -euo pipefail
+
+PORT="${LLM_PORT:-8081}"
+KEY="${LLM_API_KEY:-$(cat "${LLM_KEYFILE:-$HOME/.config/s25-llm-key}" 2>/dev/null || true)}"
+[ -n "$KEY" ] || { echo "no API key: set LLM_API_KEY or write ~/.config/s25-llm-key" >&2; exit 1; }
+
+pick_base() {
+  if adb get-state >/dev/null 2>&1; then
+    adb forward "tcp:$PORT" "tcp:$PORT" >/dev/null 2>&1 || true
+    echo "http://localhost:$PORT"
+  elif [ -n "${LLM_HOST:-}" ]; then
+    echo "http://$LLM_HOST:$PORT"
+  else
+    echo "no USB device and LLM_HOST unset" >&2; exit 1
+  fi
+}
+
+BASE="$(pick_base)"
+AUTH=(-H "Authorization: Bearer $KEY")
+
+case "${1:-}" in
+  --health) curl -s "${AUTH[@]}" "$BASE/health"; echo ;;
+  --models) curl -s "${AUTH[@]}" "$BASE/v1/models"; echo ;;
+  "")       echo "usage: llm \"prompt\" | --health | --models" >&2; exit 1 ;;
+  *)
+    curl -s "${AUTH[@]}" -H 'Content-Type: application/json' \
+      "$BASE/v1/chat/completions" \
+      -d "$(jq -nc --arg p "$*" '{messages:[{role:"user",content:$p}],stream:false}')" \
+    | jq -r '.choices[0].message.content'
+    ;;
+esac

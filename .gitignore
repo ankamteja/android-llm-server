@@ -1,0 +1,6 @@
+# Never commit the API key or any model weights.
+*.gguf
+llm-api-key
+.config/
+*.log
+bench/raw/
