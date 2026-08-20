@@ -8,7 +8,9 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 # --- preflight -------------------------------------------------------------
 # Fail early with a clear message rather than halfway through a package install.
-[ -n "${PREFIX:-}" ] && [ -d "$PREFIX" ] || die "this must run inside Termux (\$PREFIX not set)"
+if [ -z "${PREFIX:-}" ] || [ ! -d "$PREFIX" ]; then
+  die "this must run inside Termux (\$PREFIX not set)"
+fi
 case "$(uname -m)" in
   aarch64|arm64) : ;;
   *) die "built for aarch64 phones; this device is $(uname -m)" ;;
