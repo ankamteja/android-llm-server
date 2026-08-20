@@ -95,6 +95,12 @@ def test_page_asks_for_a_key_and_sends_it(web):
     assert "res.status===401" in body
 
 
+def test_page_skips_the_done_sentinel(web):
+    """The [DONE] line is not JSON; the page must skip it, not parse it."""
+    body = get(web.url + "/").read().decode()
+    assert "data==='[DONE]'" in body
+
+
 def test_models_endpoint_names_the_rag_model(web):
     body = json.load(get(web.url + "/v1/models"))
     assert body["data"][0]["id"] == "cpts-notes-rag"

@@ -137,7 +137,8 @@ f.onsubmit=async e=>{
       const parts=buf.split('\\n\\n'); buf=parts.pop();
       for(const p of parts){
         const line=p.split('\\n').find(l=>l.startsWith('data:')); if(!line) continue;
-        const ev=JSON.parse(line.slice(5));
+        const data=line.slice(5).trim(); if(!data||data==='[DONE]') continue;
+        const ev=JSON.parse(data);
         if(ev.token){text+=ev.token; body.innerHTML=render(text);
           ad.scrollIntoView({block:'end'})}
         if(ev.error){body.innerHTML+='<div class="err">'+esc(ev.error)+'</div>'}
