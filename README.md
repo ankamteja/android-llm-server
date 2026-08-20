@@ -16,6 +16,8 @@ OpenAI-compatible chat API over the LAN. No root, no custom ROM, no cloud.
         └──── USB (adb forward) ── or ── Wi-Fi ────────┘
 ```
 
+> **New here? Read [GUIDE.md](GUIDE.md) first — plain English, no jargon.**
+
 ## Why this is interesting
 
 Phones are the most over-provisioned idle computers most people own. This one has
@@ -58,6 +60,9 @@ over Wi-Fi otherwise.
 
 ## Documentation
 
+- **[GUIDE.md](GUIDE.md)** — start here. Plain-English: what it is, how to use it, how to fix it.
+- **[rag/](rag/README.md)** — the CPTS study assistant (RAG over your own notes).
+
 - **[Architecture](docs/ARCHITECTURE.md)** — how every layer works, from the Android
   sandbox up through quantization and the request path. Written to be readable with
   no prior systems background.
@@ -72,10 +77,11 @@ On the Galaxy S25 (Snapdragon 8 Elite, 6 of 8 cores, Qwen3-4B-Instruct Q4_K_M):
 
 | Metric | Value |
 |---|---|
-| Generation | ~13.5 tokens/sec |
-| Prompt processing | ~27 tokens/sec |
+| Generation | ~15 tokens/sec (flash-attn, 8 threads) |
+| Prompt processing | ~33 tokens/sec |
 | Model load time | ~2.6 s |
 | Idle RAM headroom | ~4 GB free with model resident |
+| Context window | 8192 tokens (q8_0 KV cache) |
 | First-token latency | sub-second over USB |
 
 Fast enough to read along with. Not instant, but usable for real work.

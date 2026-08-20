@@ -4,3 +4,8 @@ llm-api-key
 .config/
 *.log
 bench/raw/
+
+# RAG: notes corpus and built index are private, never committed
+rag/corpus/
+rag/index/
+*.jsonl

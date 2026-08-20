@@ -16,3 +16,9 @@ if [ -r "$HOME/models/qwen3-4b.gguf" ] && [ -r "$HOME/.config/llm-api-key" ]; th
   tmux has-session -t llm 2>/dev/null || \
     tmux new-session -d -s llm "$HOME/bin/llm-server.sh"
 fi
+
+# RAG embedding server on :8082 (localhost only), for the CPTS study assistant.
+if [ -r "$HOME/models/nomic-embed.gguf" ] && [ -x "$HOME/rag/bin/rag-embed-server.sh" ]; then
+  tmux has-session -t embsrv 2>/dev/null || \
+    tmux new-session -d -s embsrv "$HOME/rag/bin/rag-embed-server.sh"
+fi
