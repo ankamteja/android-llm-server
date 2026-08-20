@@ -24,5 +24,4 @@ exec llama-server \
   --ctx-size  "$CTX" \
   --threads   "$THREADS" \
   --parallel  1 \
-  --cont-batching \
-  --mlock
+  --cont-batching

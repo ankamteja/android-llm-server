@@ -65,6 +65,35 @@ over Wi-Fi otherwise.
 - **[Networking](docs/NETWORKING.md)** — why remote access is the hard part: NAT,
   private addressing, and a DPI-filtered campus network.
 
+
+## Measured performance
+
+On the Galaxy S25 (Snapdragon 8 Elite, 6 of 8 cores, Qwen3-4B-Instruct Q4_K_M):
+
+| Metric | Value |
+|---|---|
+| Generation | ~13.5 tokens/sec |
+| Prompt processing | ~27 tokens/sec |
+| Model load time | ~2.6 s |
+| Idle RAM headroom | ~4 GB free with model resident |
+| First-token latency | sub-second over USB |
+
+Fast enough to read along with. Not instant, but usable for real work.
+
+## Endpoint authentication
+
+The API key protects the endpoints that cost CPU. Health and discovery are open:
+
+| Endpoint | Auth required |
+|---|---|
+| `POST /v1/chat/completions` | yes — 401 without key |
+| `POST /completion` | yes — 401 without key |
+| `GET /health` | no (liveness probe) |
+| `GET /v1/models` | no (capability discovery) |
+
+This is standard `llama-server` behaviour: nothing that consumes compute is reachable
+without the key.
+
 ## Security
 
 `llama-server` binds `0.0.0.0`, so it is reachable by anything that can route to the
