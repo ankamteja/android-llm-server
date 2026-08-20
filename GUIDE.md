@@ -43,15 +43,17 @@ You talk to the phone from your laptop. First connect (pick ONE):
 adb forward tcp:8081 tcp:8081
 ```
 
-**By Wi-Fi (both on campus Wi-Fi, no cable):**
+**By Wi-Fi (both on the same network, no cable):**
 ```bash
 # nothing to set up — just use the phone's address in the commands below
-# phone address today: 10.12.219.205  (this can change — see "IP changed?" below)
+# phone address today: <phone-ip>  (this can change — see "IP changed?" below)
 ```
 
-Then set your password once per terminal:
+Then set your password once per terminal. Read it from the phone rather than
+pasting it into a file — a key that lives in a document ends up in a commit:
 ```bash
-KEY=542d409f821fb25b7f291b35ce0af676a60820c04ae2af81
+adb forward tcp:8022 tcp:8022
+KEY=$(ssh -p 8022 localhost 'cat ~/.config/llm-api-key')
 ```
 
 ### Ask the plain model a question
@@ -60,15 +62,30 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
   http://localhost:8081/v1/chat/completions \
   -d '{"messages":[{"role":"user","content":"explain SMB null sessions"}]}'
 ```
-(Over Wi-Fi, replace `localhost` with `10.12.219.205`.)
+(Over Wi-Fi, replace `localhost` with `<phone-ip>`.)
 
 ### Ask the CPTS assistant (answers from YOUR notes)
-Log into the phone and run:
+
+**Easiest — in a browser** (from any device on the same Wi-Fi):
+```
+http://<phone-ip>:8083
+```
+It opens a chat page. Paste the API key once when it asks (the browser remembers it),
+type a question, and the answer streams in with the note files it used listed under it.
+This is the assistant that reads *your notes* — port 8081 is the plain model that does
+not. Any OpenAI-compatible app pointed at `http://<phone-ip>:8083/v1` gets the same
+notes-aware answers.
+
+> The key travels in clear text over the local Wi-Fi here, and this page can read the
+> private notes. Fine for your own use on a trusted network; see `docs/SECURITY.md`
+> before exposing it wider.
+
+**Or on the command line** (log into the phone):
 ```bash
-ssh -p 8022 10.12.219.205        # or: adb forward tcp:8022 tcp:8022 && ssh -p 8022 localhost
+ssh -p 8022 <phone-ip>        # or: adb forward tcp:8022 tcp:8022 && ssh -p 8022 localhost
 python3 ~/rag/bin/rag-ask.py "how do I enumerate SNMP?"
 ```
-It prints an answer, then the note files it used.
+It streams an answer, then the note files it used.
 
 ---
 
@@ -78,9 +95,10 @@ It prints an answer, then the note files it used.
 commands and methodology, quick "how do I..." questions. Great as a study aid.
 
 **Not good at:** hard multi-step reasoning, anything needing current/internet info,
-and it is **slower than ChatGPT** — about 15 words a second. That's the price of running
-on a phone CPU with no graphics card. For heavy work you said you'll use the laptop's
-RTX 4060 later; this is the always-on study buddy.
+and it is **slower than ChatGPT** — about 12 words a second once it starts, after a few
+seconds of reading your question on the phone's GPU. That's the price of running on a
+phone. It is built to be the always-on, offline study box; heavier work belongs on a
+desktop GPU.
 
 Think of it as a sharp intern that never sleeps and never phones home — not a genius.
 
@@ -91,7 +109,7 @@ Think of it as a sharp intern that never sleeps and never phones home — not a 
 **"Connection refused" / no answer**
 The server probably isn't running. Restart it:
 ```bash
-ssh -p 8022 10.12.219.205
+ssh -p 8022 <phone-ip>
 ~/bin/llm-server.sh &          # the chat model
 ~/rag/bin/rag-embed-server.sh & # the notes-search helper
 ```
@@ -106,7 +124,7 @@ The phone's Wi-Fi address isn't fixed. Get the new one over USB:
 ```bash
 adb shell ip -4 addr show wlan0 | grep inet
 ```
-Use that new address instead of `10.12.219.205`.
+Use that new address instead of `<phone-ip>`.
 
 **I added new notes — how does it learn them?**
 Put the new `.md` files in `~/rag/corpus/` on the phone, then:
@@ -117,13 +135,13 @@ It re-reads everything. No "training" needed — it just re-indexes.
 
 ---
 
-## Can I use it away from campus (from anywhere)?
+## Can I use it from anywhere (off the local network)?
 
-Not yet. The phone is stuck behind the campus network, which blocks incoming
+Not yet. The phone is behind a NAT'd network that blocks incoming
 connections from the outside world — and the usual tools that get around that
-(Tailscale, etc.) are blocked on campus Wi-Fi specifically. The fix is a cheap/free
+(Tailscale, etc.) may be blocked on such networks. The fix is a cheap/free
 cloud server acting as a middleman; it's designed but not built. Details in
-`docs/NETWORKING.md`. For now: works on campus Wi-Fi and over USB.
+`docs/NETWORKING.md`. For now: works on the local Wi-Fi and over USB.
 
 ---
 

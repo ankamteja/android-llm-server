@@ -22,7 +22,7 @@ filtered on this network.
 ## Measurement 1 — the phone's address is private
 
 ```
-wlan0: inet 10.12.219.205/20
+wlan0: inet <phone-ip>/20
 ```
 
 `10.0.0.0/8` is RFC 1918 private space. Not globally routable, not unique, shared by a
@@ -96,7 +96,7 @@ non-standard UDP port, presents no hostname to inspect and no known address to m
 The laptop reaches the phone directly across the wireless network:
 
 ```
-$ ssh -p 8022 10.12.219.205
+$ ssh -p 8022 <phone-ip>
 OK from localhost — up 6 days
 ```
 

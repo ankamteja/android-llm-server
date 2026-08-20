@@ -77,7 +77,22 @@ def test_index_page_is_served(web):
 
 def test_health_reports_chunk_count(web):
     body = json.load(get(web.url + "/health"))
-    assert body == {"status": "ok", "chunks": 3}
+    assert body["status"] == "ok"
+    assert body["chunks"] == 3
+
+
+def test_health_says_whether_a_key_is_needed(web, monkeypatch):
+    assert json.load(get(web.url + "/health"))["auth_required"] is False
+    monkeypatch.setattr(web, "require_key", True)
+    assert json.load(get(web.url + "/health"))["auth_required"] is True
+
+
+def test_page_asks_for_a_key_and_sends_it(web):
+    """The page must carry the token, or a LAN-bound server is unusable."""
+    body = get(web.url + "/").read().decode()
+    assert "auth_required" in body
+    assert "'Authorization':'Bearer '+apiKey" in body
+    assert "res.status===401" in body
 
 
 def test_models_endpoint_names_the_rag_model(web):

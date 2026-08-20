@@ -6,8 +6,8 @@ paths cited — no hallucinated commands, no internet.
 
 Built for **HTB CPTS** prep. The corpus here is a private tree of HTB Academy / CPTS
 module notes (information gathering, exploitation, password attacks, privilege
-escalation, post-exploitation). Heavy CTF work is intended to move to a laptop RTX 4060
-later; this runs the always-on study assistant.
+escalation, post-exploitation). It runs as an always-on, offline study assistant;
+heavier work belongs on a desktop GPU.
 
 ## How it works
 
@@ -69,7 +69,7 @@ xdg-open http://localhost:8083
 ```
 
 It binds `127.0.0.1` on the phone, so it is reachable only through that forward and
-never sits on the campus network. If you do bind it to a routable address
+never sits on the wider network. If you do bind it to a routable address
 (`--host 0.0.0.0`), it requires the same bearer token as :8081.
 
 ## Which port applies retrieval

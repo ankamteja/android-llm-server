@@ -1,18 +1,28 @@
 #!/data/data/com.termux/files/usr/bin/env python3
 """Browser front end and OpenAI-compatible endpoint for the notes assistant.
 
-Runs on the DEVICE, default 127.0.0.1:8083. The chat server on :8081 answers
-from model weights alone; everything here goes through retrieval first, so:
+Runs on the DEVICE. The chat server on :8081 answers from model weights alone;
+everything here goes through retrieval first, so:
 
     :8081  raw model, no notes
     :8083  same model, your notes retrieved and pasted in first
 
     GET  /                      the chat page
-    GET  /health                {"status":"ok","chunks":N}
+    GET  /health                {"status","chunks","auth_required"} — always open
     POST /ask                   {"question": "..."} -> SSE token stream
     POST /v1/chat/completions   OpenAI-compatible, RAG applied automatically
 
-Reach it from the laptop with:  adb forward tcp:8083 tcp:8083
+Binding decides whether a token is demanded. On loopback there is nothing to
+protect against -- only processes on the phone, and whatever the laptop
+forwards over USB, can reach it -- so no key is asked for:
+
+    adb forward tcp:8083 tcp:8083   # then http://localhost:8083
+
+Bound to a routable address (--host 0.0.0.0) every request except /health must
+carry the bearer token from ~/.config/llm-api-key. Be clear-eyed about what
+that is worth: this endpoint answers *out of* the private notes corpus, and the
+token travels in clear text over HTTP, so anyone able to watch traffic on the
+same network can lift it and read the notes through it. See docs/SECURITY.md.
 
 The index is loaded once at startup (a few seconds) instead of per question,
 which is most of why this answers faster than the CLI.
@@ -64,19 +74,42 @@ button{padding:0 18px;border:0;border-radius:8px;background:var(--accent);color:
 font:inherit;font-weight:600;cursor:pointer}
 button:disabled{opacity:.5;cursor:default}
 .err{color:#c0392b}
+#keybox{display:flex;gap:8px;align-items:center;margin-bottom:14px;padding:10px 12px;
+border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:13px}
+#keybox label{color:var(--mut);white-space:nowrap}
+#keybox input{flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;
+background:var(--bg);color:var(--fg);font:inherit;font-family:ui-monospace,monospace}
+#ks{color:var(--mut);white-space:nowrap}
 </style></head><body>
 <header><h1>CPTS notes assistant</h1>
 <p>Answers from <span id="n">your</span> note chunks — retrieval first,
 then the local model.</p></header>
 <main>
 <div id="log"></div>
+<div id="keybox" hidden><label for="k">API key</label>
+<input id="k" type="password" placeholder="bearer token from ~/.config/llm-api-key"
+autocomplete="off"><span id="ks"></span></div>
 <form id="f"><textarea id="q" placeholder="how do I enumerate SMB shares?"
 autofocus></textarea><button id="b">Ask</button></form>
 </main>
 <script>
 const log=document.getElementById('log'),f=document.getElementById('f'),
       q=document.getElementById('q'),b=document.getElementById('b');
-fetch('health').then(r=>r.json()).then(d=>{document.getElementById('n').textContent=d.chunks});
+const kb=document.getElementById('keybox'),ki=document.getElementById('k'),
+      ks=document.getElementById('ks');
+// Stored per browser only. It never leaves this device except as the bearer
+// header on requests to this server.
+let apiKey='';
+try{apiKey=localStorage.getItem('ragKey')||''}catch(e){}
+ki.value=apiKey;
+ki.oninput=()=>{apiKey=ki.value.trim();
+  try{localStorage.setItem('ragKey',apiKey)}catch(e){}
+  ks.textContent=apiKey?'saved':''};
+function authHeaders(){return apiKey?{'Authorization':'Bearer '+apiKey}:{}}
+fetch('health').then(r=>r.json()).then(d=>{
+  document.getElementById('n').textContent=d.chunks;
+  if(d.auth_required){kb.hidden=false; if(!apiKey) ki.focus();}
+});
 function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function render(s){return esc(s)
   .replace(/```([\\s\\S]*?)```/g,(m,c)=>'<pre><code>'+c.replace(/^\\w*\\n/,'')+'</code></pre>')
@@ -91,8 +124,11 @@ f.onsubmit=async e=>{
   log.append(qd,ad); ad.scrollIntoView({block:'end'});
   let text='', t0=Date.now();
   try{
-    const res=await fetch('ask',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch('ask',{method:'POST',
+      headers:{'Content-Type':'application/json',...authHeaders()},
       body:JSON.stringify({question})});
+    if(res.status===401){kb.hidden=false; ki.focus();
+      throw new Error('This server needs an API key. Paste it above and ask again.')}
     if(!res.ok) throw new Error(await res.text());
     const rd=res.body.getReader(), dec=new TextDecoder(); let buf='';
     for(;;){
@@ -166,7 +202,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/":
             self._send(200, PAGE, "text/html; charset=utf-8")
         elif path == "/health":
-            self._send(200, {"status": "ok", "chunks": len(self.server.index)})
+            # auth_required lets the page know whether to ask for a key. Kept
+            # open so a liveness probe needs no credential.
+            self._send(200, {"status": "ok", "chunks": len(self.server.index),
+                             "auth_required": self.server.require_key})
         elif path == "/v1/models":
             self._send(200, {"object": "list", "data": [
                 {"id": "cpts-notes-rag", "object": "model", "owned_by": "local"}]})

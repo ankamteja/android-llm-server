@@ -105,7 +105,7 @@ Worth understanding properly, because it is the one unsolved piece.
 
 Addresses in `10.0.0.0/8`, `192.168.0.0/16` and `172.16.0.0/12` are **private**. They
 are not globally unique — millions of networks reuse the same numbers — so the public
-internet refuses to route them. A phone at `10.12.219.205` is meaningful only inside
+internet refuses to route them. A phone at `<phone-ip>` is meaningful only inside
 its own network.
 
 ```
@@ -153,25 +153,39 @@ is roughly 8 GB — more than the ~3.4 GB of RAM actually available on this devi
 `Q4_K_M` stores most weights in about 4 bits, shrinking the file to **2.32 GB** for a
 modest quality loss. `.gguf` is llama.cpp's container format for such models.
 
-**llama.cpp runs it on CPU.** Most ML tooling assumes an NVIDIA GPU. llama.cpp is
-portable C++ that runs on ordinary processors including ARM, using NEON SIMD
-instructions. `llama-server` wraps it in an HTTP API that mimics OpenAI's, so existing
-clients work unchanged against it.
+**llama.cpp runs it, split across the GPU and CPU.** Most ML tooling assumes an
+NVIDIA GPU; llama.cpp is portable C++ that runs on ordinary processors including ARM.
+On this phone it uses two backends at once:
 
-Launch flags and why each is there:
+- **Prompt processing on the Adreno 830 GPU**, through Mesa's open-source *turnip*
+  Vulkan driver. This is the matmul-heavy work of reading your input, and the GPU is
+  about 4x faster at it than the CPU (70 vs 18 tokens/sec). It is what decides how
+  long you wait before an answer starts.
+- **Token generation on the CPU**, pinned to the six 3.53 GHz performance cores. The
+  GPU is actually slower here — generation is memory-bandwidth bound, not compute
+  bound — so the two halves deliberately run on different hardware.
+
+`llama-server` wraps all this in an HTTP API that mimics OpenAI's, so existing clients
+work unchanged. Launch flags and why each is there:
 
 ```
 --host 0.0.0.0     listen on all interfaces, not just loopback
 --port 8081        must be >1024 — non-root cannot bind lower
 --api-key <key>    mandatory: 0.0.0.0 on a LAN without client isolation
---ctx-size 4096    tokens of context retained per conversation
---threads 6        6 of 8 cores; 2 left for Android itself
+--ctx-size 8192    tokens of context retained per conversation
+--n-gpu-layers 99  offload the whole model to the Adreno GPU for prompt eval
+--threads 6        6 worker threads...
+--cpu-mask 0x3f    ...pinned to cpu0-5, the matched performance cores
+--cpu-strict 1     keep them there instead of letting Android migrate them
 --cont-batching    keep the pipeline fed across overlapping requests
---mlock            pin weights in RAM so Android cannot swap them out
 ```
 
-`--mlock` matters more than it looks: without it, Android's memory manager will page
-the model out under pressure and the first token after an idle period takes seconds.
+Two flags that are deliberately *absent*: `--mlock` (needs root — `RLIMIT_MEMLOCK`
+fails unrooted) and `--prio` (raising thread priority also needs root). And one
+environment variable that must stay unset: `GGML_BACKEND_PATH` pointing at a single
+backend library restricts ggml to it and silently drops the GPU. See
+[../bench/RESULTS.md](../bench/RESULTS.md) for the measurements behind every one of
+these choices.
 
 ---
 
