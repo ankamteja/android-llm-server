@@ -9,3 +9,8 @@ bench/raw/
 rag/corpus/
 rag/index/
 *.jsonl
+
+# Local Claude Code worktrees
+.claude/worktrees/
+__pycache__/
+*.pyc
