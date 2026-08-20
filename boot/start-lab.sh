@@ -22,3 +22,18 @@ if [ -r "$HOME/models/nomic-embed.gguf" ] && [ -x "$HOME/rag/bin/rag-embed-serve
   tmux has-session -t embsrv 2>/dev/null || \
     tmux new-session -d -s embsrv "$HOME/rag/bin/rag-embed-server.sh"
 fi
+
+# Browser front end for the notes assistant on :8083. Unlike :8081 this applies
+# retrieval before answering, so it needs the index.
+#
+# It is bound LAN-wide so other devices on the Wi-Fi can use it, which means
+# every request except /health must carry the bearer token. Note what that
+# exposes: this endpoint reads out of the private notes corpus and the token is
+# sent in clear text over HTTP. Set RAG_WEB_HOST=127.0.0.1 to go back to
+# loopback-only (reachable via adb forward tcp:8083 tcp:8083), which is the
+# safer default on a network you do not trust.
+if [ -r "$HOME/rag/index.jsonl" ] && [ -r "$HOME/rag/bin/rag-web.py" ]; then
+  tmux has-session -t ragweb 2>/dev/null || \
+    tmux new-session -d -s ragweb \
+      "RAG_WEB_HOST=${RAG_WEB_HOST:-0.0.0.0} python3 $HOME/rag/bin/rag-web.py"
+fi

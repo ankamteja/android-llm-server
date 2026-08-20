@@ -9,3 +9,11 @@ bench/raw/
 rag/corpus/
 rag/index/
 *.jsonl
+
+# Local Claude Code worktrees
+.claude/worktrees/
+__pycache__/
+*.pyc
+
+# Deployment-specific / explanatory docs — never publish (contains local network detail)
+private/
