@@ -22,3 +22,11 @@ if [ -r "$HOME/models/nomic-embed.gguf" ] && [ -x "$HOME/rag/bin/rag-embed-serve
   tmux has-session -t embsrv 2>/dev/null || \
     tmux new-session -d -s embsrv "$HOME/rag/bin/rag-embed-server.sh"
 fi
+
+# Browser front end for the notes assistant on :8083 (localhost only). Open it
+# from the laptop with:  adb forward tcp:8083 tcp:8083 && xdg-open http://localhost:8083
+# Unlike :8081 this applies retrieval before answering, so it needs the index.
+if [ -r "$HOME/rag/index.jsonl" ] && [ -r "$HOME/rag/bin/rag-web.py" ]; then
+  tmux has-session -t ragweb 2>/dev/null || \
+    tmux new-session -d -s ragweb "python3 $HOME/rag/bin/rag-web.py"
+fi
