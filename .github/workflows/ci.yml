@@ -48,6 +48,7 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y shellcheck
           # Termux scripts use a Termux shebang that shellcheck cannot resolve,
-          # so the shell dialect is named explicitly.
+          # so the shell dialect is named explicitly. --severity=warning keeps
+          # info/style notes from failing the build across shellcheck versions.
           find . -name '*.sh' -not -path './.git/*' -print0 \
-            | xargs -0 -r shellcheck --shell=bash --external-sources
+            | xargs -0 -r shellcheck --shell=bash --severity=warning --external-sources
